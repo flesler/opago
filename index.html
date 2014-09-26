@@ -1,0 +1,303 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>OPago</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="description" content="OPago - Conversor de ordenes de pago a formato Excel (CSV)"/>
+    <meta name="copyright" content="2010-2014 DeCreditos SA"/>
+    <meta name="author" content="Ariel Flesler"/>
+    <meta name="language" content="es"/>
+    <meta name="robots" content="noindex, nofollow"/>
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<style type="text/css">
+			body {
+				background: #c50031;
+				background: -moz-linear-gradient(top, #c50031 0%, #66001a 100%);
+				background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#c50031), color-stop(100%,#66001a));
+				background: -webkit-linear-gradient(top, #c50031 0%,#66001a 100%);
+				background: -o-linear-gradient(top, #c50031 0%,#66001a 100%);
+				background: -ms-linear-gradient(top, #c50031 0%,#66001a 100%);
+				background: linear-gradient(to bottom, #c50031 0%,#66001a 100%);
+				filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#c50031', endColorstr='#66001a',GradientType=0 );
+			}
+
+			html, body {
+				margin: 0;
+				padding: 0;
+				height: 100%;
+				overflow: hidden;
+			}
+
+			#app {
+				height: 100%;
+				padding: 30px 30px 70px 30px;
+				box-sizing: border-box;
+				-moz-box-sizing: border-box;
+			}
+
+			#source {
+				width: 100%;
+				height: 100%;
+				margin-bottom: 10px;
+			}
+
+			label {
+				color: white;
+				display: inline-block;
+				position: relative;
+				z-index: 2;
+				float: left;
+			}
+
+			footer {
+				z-index: 1;
+				position: absolute;
+				bottom: 25px;
+				left:0;
+				width: 100%;
+				text-align: center;
+				color: white;
+				font-size: 12px;
+			}
+
+			#save {
+				z-index: 3;
+				float: right;
+				background: #DDD;
+				padding: 5px;
+				border: 2px outset #999;
+				text-decoration: none;
+				color: #333;
+				display: inline-block;
+				position: relative;
+
+				-webkit-border-radius: 3px;
+				-moz-border-radius: 3px;
+				-ms-border-radius: 3px;
+				border-radius: 3px;
+			}
+		</style>
+	</head>
+	<body onload="init()">
+		<main id="app">
+			<textarea id="source"></textarea>
+			<label>Separador:
+				<select id="separator" onchange="saveSeparator()">
+					<option value="\t">Tab</option>
+					<option value=",">Coma</option>
+					<option value=";">Punto y Coma</option>
+					<option value=" ">Espacio</option>
+				</select>
+			</label>
+			<a id="save" onmousedown="this.href=generateLink()" href="#" download="OPago.xls">Guardar</a>
+			<footer>
+				OPago 1.1.0 - Copyright © 2010-2014 DeCreditos SA
+			</footer>
+		</main>
+		<script type="text/javascript">
+			function $(id) {
+				return document.getElementById(id);
+			}
+
+			function init() {
+				if (!window.FileReader || ('ondrop' in window === false)) {
+					return alert('Este browser no está soportado');
+				}
+
+				var body = document.body;
+				bind(body, 'dragenter', prevent);
+				bind(body, 'dragover', prevent);
+				bind(body, 'drop', onDrop);
+
+				if (localStorage.separator) {
+					$('separator').value = localStorage.separator;
+				}
+			}
+
+			function prevent(e) {
+				if (e.preventDefault) e.preventDefault();
+				return false;
+			}
+
+			function bind(obj, evt, handler) {
+				if(obj.addEventListener) {
+					obj.addEventListener(evt, handler, false);
+				} else if(obj.attachEvent) {
+					obj.attachEvent('on'+evt, handler);
+				} else {
+					obj['on'+evt] = handler;
+				}
+			}
+
+			function onDrop(e) {
+				var file = e.dataTransfer.files[0];
+				var reader = new FileReader();
+				bind(reader, 'loadend', function(e) {
+					$('source').value = reader.result;
+				});
+				reader.readAsText(file);
+				return prevent(e);
+			}
+
+			function generateLink() {
+				var file = $('source').value;
+				if (!file) return alert('Debe incluir el archivo para poder guardar');
+				var data = parseFile(file);
+				if (!data) return alert('Ocurrió un error');
+				$('save').setAttribute('download', getFilename(data));
+				var csv = generateCSV(data);
+				return 'data:application/octet-stream,'+encodeURIComponent(csv);
+			}
+
+			//- Parsing
+
+			var COLS = ['Tipo','Localidad','Entidad', 'Concepto','Fecha','Orden de pago','Cantidad','Total'];
+			var LINE_START = '     P';
+
+			function parseFile(contents) {
+				var rows = [COLS];
+				var data = {rows:rows, expectedTotal:0, calculatedTotal:0, title:'', date:null};
+
+				contents.split(/\n|\r|\r\n/).forEach(function(line) {
+					if (line.indexOf(LINE_START) === 0) {
+						parseLine(line, data);
+					} else {
+						parseMeta(line, data);
+					}
+				});
+
+				// Only cols
+				if (rows.length === 1) 
+					return null;
+					
+				rows.push([]);
+				rows.push(['Total segun Texto:', data.expectedTotal]);
+				rows.push(['Total segun OPago:', showNumber(data.calculatedTotal)]);
+				rows.push(['Total segun Excel:', '=SUM(H2:H9999)']);
+						
+				return data;
+			}
+
+			//-- Metadata
+
+			var DATE_RE = /^ +(?:CYBA[ \w]+?|INTE[ \w]+?|[ -]+)(\d+\/\d+\/\d+)$/;
+			var PAY_DATE_RE = /Fecha pago +(\d+\/\d+\/\d+)/;
+			var EXPECTED_TOTAL_RE = /Importe +([\d.]+(?:,\d+)?)/;
+
+			function parseMeta(line, data) {
+				data.date = data.date || match(DATE_RE, line);
+				data.title = data.title || match(PAY_DATE_RE, line);
+				data.expectedTotal = data.expectedTotal || match(EXPECTED_TOTAL_RE, line);
+			}
+
+			function match(re, line) {
+				var m = re.exec(line);
+				return m && m[1] || null;
+			}
+
+			//-- Data
+
+			var ROMAN_RE = /^[IV0-9]+$/;
+			var CONCEPTS = ['FEE', 'IVA', 'BRUTO'];
+
+			function parseLine(line, data) {
+				// Quick Fix for special case where columns overlap
+				line = line.replace("VIII", "VIII ");
+				
+				var parts = line.split(/ +/);
+				var ret = [];
+				var cur;
+				
+				function next() { cur = parts[1]; return parts.shift(); }
+				function add(str) { ret.push(str); }
+
+				next();
+				add(next());
+				
+				if (parseInt(cur)) {
+					next();
+				}
+				
+				add(cur.slice(0,4));
+				
+				var entity = [next().slice(4,6)];
+				var done = false;
+				
+				do {
+					for (var i = 0 ; i < CONCEPTS.length; i++) {
+						var concept = CONCEPTS[i];
+						if (cur.slice(-concept.length) === concept) {
+							add(entity.join(' '));
+							add(concept);
+							done = true;
+							break;
+						}
+					}
+					
+					if (ROMAN_RE.test(cur)) {
+						entity.push(cur);
+					}
+
+					next();
+				} while (!done);
+				
+				add(data.date);
+				add(next());
+				next();
+				
+				var qty = next();
+				var total = next();
+				
+				if (!total)	{
+					total = qty;
+					qty = '';
+				}
+				
+				if (total.slice(-1) === '-')
+					total = '-' + total.slice(0,-1);
+				
+				add(qty);
+				add(total);
+				
+				data.calculatedTotal += parseAmount(total);
+				data.rows.push(ret);
+			}
+			
+			function parseAmount(amount) {
+				amount = amount.replace(/\./g, '').replace(',', '.');
+				return parseFloat(amount) || 0;
+			}
+			
+			function showNumber(num) {
+				// TODO: Maintain format (999,999.00)
+				return isNaN(num) ? 'Error' : num.toFixed(2).replace('.', ',');
+			}
+
+			//- CSV
+
+			var QUOTE = '"';
+
+			function generateCSV(data) {
+				var separator = getSeparator();
+				return data.rows.map(function(row) {
+					return QUOTE + row.join(QUOTE + separator + QUOTE) + QUOTE;
+				}).join('\n');
+			}
+
+			function saveSeparator() {
+				localStorage.separator = $('separator').value;
+			}
+
+			function getSeparator() {
+				var val = $('separator').value;
+				return val === '\\t' ? '\t' : val;
+			}
+
+			function getFilename(data) {
+				return ('OPago '+data.title+'.xls').replace(/\//g, ' ').replace(/ /g, '\ ');
+			}
+		</script>
+	</body>
+</html>
+		
