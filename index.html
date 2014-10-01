@@ -110,6 +110,11 @@
 			}
 
 			function init() {
+				// Hide dowload when already downloaded
+				if (location.protocol === 'file:') {
+					$('download').style.display = 'none';
+				}
+
 				if (!window.FileReader || ('ondrop' in window === false)) {
 					return alert('Este browser no está soportado');
 				}
