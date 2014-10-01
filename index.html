@@ -36,12 +36,18 @@
 				-moz-box-sizing: border-box;
 			}
 
-			#download {
+			#download, #online-link {
+				display: none;
 				position: absolute;
 				right: 25px;
 				top: 4px;
 				color: white;
 				text-decoration: none;
+			}
+
+			.online #download,
+			.offline #online-link {
+				display: block;
 			}
 
 			#source {
@@ -89,7 +95,8 @@
 	</head>
 	<body onload="init()">
 		<div id="app">
-			<a id="download" href="./index.html" download="opago.html">Descargar</a>
+			<a id="download" href="./index.html" download="opago.html">Descargar offline</a>
+			<a id="online-link" href="http://flesler.github.io/opago/">Usar online</a>
 			<textarea id="source" autofocus="autofocus" placeholder="Pegar texto o arrastrar archivo aquí..."></textarea>
 			<label>Delimitador:
 				<select id="separator" onchange="saveSeparator()">
@@ -101,7 +108,7 @@
 			</label>
 			<a id="save" onmousedown="this.href=generateLink()" href="#" download="">Guardar</a>
 			<footer>
-				OPago 1.2.0 - Copyright © 2010-2014 DeCreditos SA
+				OPago 1.2.1 - Copyright © 2010-2014 DeCreditos SA
 			</footer>
 		</div>
 		<script type="text/javascript">
@@ -110,11 +117,6 @@
 			}
 
 			function init() {
-				// Hide dowload when already downloaded
-				if (location.protocol === 'file:') {
-					$('download').style.display = 'none';
-				}
-
 				if (!window.FileReader || ('ondrop' in window === false)) {
 					return alert('Este browser no está soportado');
 				}
@@ -123,6 +125,7 @@
 				bind(body, 'dragenter', prevent);
 				bind(body, 'dragover', prevent);
 				bind(body, 'drop', onDrop);
+				body.className = location.protocol === 'file:' ? 'offline' : 'online';
 
 				if (localStorage.separator) {
 					$('separator').value = localStorage.separator;
