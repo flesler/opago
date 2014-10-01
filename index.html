@@ -36,6 +36,14 @@
 				-moz-box-sizing: border-box;
 			}
 
+			#download {
+				position: absolute;
+				right: 25px;
+				top: 4px;
+				color: white;
+				text-decoration: none;
+			}
+
 			#source {
 				width: 100%;
 				height: 100%;
@@ -81,8 +89,9 @@
 	</head>
 	<body onload="init()">
 		<div id="app">
-			<textarea id="source"></textarea>
-			<label>Separador:
+			<a id="download" href="./index.html" download="opago.html">Descargar</a>
+			<textarea id="source" autofocus="autofocus" placeholder="Pegar texto o arrastrar archivo aquí..."></textarea>
+			<label>Delimitador:
 				<select id="separator" onchange="saveSeparator()">
 					<option value="\t">Tab</option>
 					<option value=",">Coma</option>
@@ -90,9 +99,9 @@
 					<option value=" ">Espacio</option>
 				</select>
 			</label>
-			<a id="save" onmousedown="this.href=generateLink()" href="#" download="OPago.xls">Guardar</a>
+			<a id="save" onmousedown="this.href=generateLink()" href="#" download="">Guardar</a>
 			<footer>
-				OPago 1.1.0 - Copyright © 2010-2014 DeCreditos SA
+				OPago 1.2.0 - Copyright © 2010-2014 DeCreditos SA
 			</footer>
 		</div>
 		<script type="text/javascript">
@@ -198,7 +207,7 @@
 
 			//-- Data
 
-			var ROMAN_RE = /^[IV0-9]+$/;
+			var ROMAN_RE = /^[IXV0-9]+$/;
 			var CONCEPTS = ['FEE', 'IVA', 'BRUTO'];
 
 			function parseLine(line, data) {
