@@ -108,7 +108,7 @@
 			</label>
 			<a id="save" onmousedown="this.href=generateLink()" href="#" download="">Guardar</a>
 			<footer>
-				OPago 1.2.1 - Copyright © 2010-2014 DeCreditos SA
+				OPago 1.2.2 - Copyright © 2010-2014 DeCreditos SA
 			</footer>
 		</div>
 		<script type="text/javascript">
@@ -203,7 +203,10 @@
 			var EXPECTED_TOTAL_RE = /Importe +([\d.]+(?:,\d+)?)/;
 
 			function parseMeta(line, data) {
-				data.date = data.date || match(DATE_RE, line);
+				var date = match(DATE_RE, line);
+				if (date) {
+					data.date = date;
+				}
 				data.title = data.title || match(PAY_DATE_RE, line);
 				data.expectedTotal = data.expectedTotal || match(EXPECTED_TOTAL_RE, line);
 			}
