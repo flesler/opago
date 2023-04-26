@@ -108,7 +108,7 @@
 			</label>
 			<a id="save" onmousedown="this.href=generateLink()" href="#" download="">Guardar</a>
 			<footer>
-				OPago 1.2.2 - Copyright © 2010-2014 DeCreditos SA
+				OPago 2.0.0 - Copyright © 2010 DeCreditos SA
 			</footer>
 		</div>
 		<script type="text/javascript">
@@ -170,17 +170,22 @@
 			//- Parsing
 
 			var COLS = ['Tipo','Localidad','Entidad', 'Concepto','Fecha','Orden de pago','Cantidad','Total'];
-			var LINE_START = '     P';
+			var LINE_START = /^     [PI][A-Z]/;
 
 			function parseFile(contents) {
 				var rows = [COLS];
 				var data = {rows:rows, expectedTotal:0, calculatedTotal:0, title:'', date:null};
 
 				contents.split(/\n|\r|\r\n/).forEach(function(line) {
-					if (line.indexOf(LINE_START) === 0) {
-						parseLine(line, data);
-					} else {
-						parseMeta(line, data);
+					try {
+						if (LINE_START.test(line)) {
+							parseLine(line, data);
+						} else {
+							parseMeta(line, data);
+						}
+					} catch (err) {
+						alert('Hubo un error en la linea\n\n' + line + '\n\n' + err.message)
+						throw err
 					}
 				});
 
@@ -219,11 +224,13 @@
 			//-- Data
 
 			var ROMAN_RE = /^[IXV0-9]+$/;
-			var CONCEPTS = ['FEE', 'IVA', 'BRUTO'];
+			var CONCEPTS = ['FEE', 'IVA', 'BRUTO', 'RET'];
 
 			function parseLine(line, data) {
 				// Quick Fix for special case where columns overlap
-				line = line.replace("VIII", "VIII ");
+				line = line.replace("VIII", "VIII ")
+					// Hack these
+					.replace('Ret.', 'RET').replace(' 4622', '').replace(/RET ([A-Z]+(?: [A-Z]+)?)/, '- RET');
 				
 				var parts = line.split(/ +/);
 				var ret = [];
@@ -260,6 +267,9 @@
 					}
 
 					next();
+					if (!cur) {
+						throw new Error('No se encontro "Concepto"')
+					}
 				} while (!done);
 				
 				add(data.date);
